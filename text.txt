@@ -1,0 +1,236 @@
+-- Delta Executor Compatible Roblox Player List GUI (Mobile-Friendly)
+-- Smaller UI, Black & Neon Green theme, Fully Draggable
+-- Paste this entire script into Delta Executor console.
+
+local Players = game:GetService("Players")
+local StarterGui = game:GetService("StarterGui")
+local UserInputService = game:GetService("UserInputService")
+local TweenService = game:GetService("TweenService")
+
+local player = Players.LocalPlayer
+local playerGui = player:WaitForChild("PlayerGui")
+
+-- Create ScreenGui
+local screenGui = Instance.new("ScreenGui")
+screenGui.Name = "DeltaPlayerList"
+screenGui.ResetOnSpawn = false
+screenGui.IgnoreGuiInset = true
+screenGui.Parent = playerGui
+
+-- Main Frame (smaller size)
+local mainFrame = Instance.new("Frame")
+mainFrame.Name = "PlayerListFrame"
+mainFrame.Size = UDim2.new(0, 320, 0, 380)
+mainFrame.Position = UDim2.new(0.5, -160, 0.5, -190)
+mainFrame.BackgroundColor3 = Color3.fromRGB(15, 15, 15)  -- Dark black
+mainFrame.BorderSizePixel = 0
+mainFrame.Parent = screenGui
+
+-- Rounded corners
+local corner = Instance.new("UICorner")
+corner.CornerRadius = UDim.new(0, 12)
+corner.Parent = mainFrame
+
+-- Title Bar (for dragging)
+local title = Instance.new("TextLabel")
+title.Name = "TitleBar"
+title.Text = "Players (Tap & Hold to Drag)"
+title.Size = UDim2.new(1, 0, 0, 45)
+title.BackgroundColor3 = Color3.fromRGB(0, 100, 0)  -- Dark green
+title.TextColor3 = Color3.fromRGB(0, 255, 0)       -- Neon green text
+title.Font = Enum.Font.GothamBold
+title.TextSize = 18
+title.Parent = mainFrame
+
+local titleCorner = Instance.new("UICorner")
+titleCorner.CornerRadius = UDim.new(0, 12)
+titleCorner.Parent = title
+
+-- ScrollingFrame for player list
+local scrollingFrame = Instance.new("ScrollingFrame")
+scrollingFrame.Size = UDim2.new(1, -20, 1, -55)
+scrollingFrame.Position = UDim2.new(0, 10, 0, 45)
+scrollingFrame.BackgroundTransparency = 1
+scrollingFrame.ScrollBarThickness = 6
+scrollingFrame.ScrollBarImageColor3 = Color3.fromRGB(0, 200, 0)
+scrollingFrame.Parent = mainFrame
+
+-- UIListLayout
+local listLayout = Instance.new("UIListLayout")
+listLayout.Padding = UDim.new(0, 6)
+listLayout.Parent = scrollingFrame
+
+-- Detail Panel (appears below list when player selected)
+local detailFrame = Instance.new("Frame")
+detailFrame.Size = UDim2.new(1, -20, 0, 120)
+detailFrame.Position = UDim2.new(0, 10, 1, -130)
+detailFrame.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
+detailFrame.BorderSizePixel = 0
+detailFrame.Visible = false
+detailFrame.Parent = mainFrame
+
+local detailCorner = Instance.new("UICorner")
+detailCorner.CornerRadius = UDim.new(0, 8)
+detailCorner.Parent = detailFrame
+
+local detailLabel = Instance.new("TextLabel")
+detailLabel.Size = UDim2.new(1, -20, 0, 50)
+detailLabel.Position = UDim2.new(0, 10, 0, 10)
+detailLabel.BackgroundTransparency = 1
+detailLabel.TextColor3 = Color3.fromRGB(0, 255, 0)
+detailLabel.Font = Enum.Font.Gotham
+detailLabel.TextSize = 16
+detailLabel.TextWrapped = true
+detailLabel.Text = "No player selected"
+detailLabel.Parent = detailFrame
+
+local blockButton = Instance.new("TextButton")
+blockButton.Size = UDim2.new(1, -20, 0, 45)
+blockButton.Position = UDim2.new(0, 10, 1, -55)
+blockButton.BackgroundColor3 = Color3.fromRGB(0, 150, 0)  -- Green button
+blockButton.TextColor3 = Color3.new(1, 1, 1)
+blockButton.Font = Enum.Font.GothamBold
+blockButton.TextSize = 16
+blockButton.Text = "🚫 Block Player"
+blockButton.Parent = detailFrame
+
+local blockCorner = Instance.new("UICorner")
+blockCorner.CornerRadius = UDim.new(0, 8)
+blockCorner.Parent = blockButton
+
+-- Draggable functionality (works great on mobile with touch)
+local dragging = false
+local dragInput
+local dragStart
+local startPos
+
+local function updateInput(input)
+    local delta = input.Position - dragStart
+    mainFrame.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+end
+
+title.InputBegan:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+        dragging = true
+        dragStart = input.Position
+        startPos = mainFrame.Position
+        
+        input.Changed:Connect(function()
+            if input.UserInputState == Enum.UserInputState.End then
+                dragging = false
+            end
+        end)
+    end
+end)
+
+title.InputChanged:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then
+        dragInput = input
+    end
+end)
+
+UserInputService.InputChanged:Connect(function(input)
+    if dragging and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
+        updateInput(input)
+    end
+end)
+
+-- Hover effects for block button
+blockButton.MouseEnter:Connect(function()
+    blockButton.BackgroundColor3 = Color3.fromRGB(0, 200, 0)
+end)
+blockButton.MouseLeave:Connect(function()
+    blockButton.BackgroundColor3 = Color3.fromRGB(0, 150, 0)
+end)
+
+-- Selected player
+local selectedPlayer = nil
+
+-- Block button
+blockButton.MouseButton1Click:Connect(function()
+    if selectedPlayer and selectedPlayer.Parent then
+        pcall(function()
+            StarterGui:SetCore("PromptBlockPlayer", selectedPlayer)
+        end)
+        selectedPlayer = nil
+        detailFrame.Visible = false
+        detailLabel.Text = "No player selected"
+    end
+end)
+
+-- Player buttons table
+local playerButtons = {}
+
+-- Canvas size update
+local function updateCanvas()
+    scrollingFrame.CanvasSize = UDim2.new(0, 0, 0, listLayout.AbsoluteContentSize.Y + 10)
+end
+listLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(updateCanvas)
+
+-- Update player list
+local function updatePlayerList()
+    for _, btn in pairs(playerButtons) do
+        btn:Destroy()
+    end
+    playerButtons = {}
+    
+    local playerList = {}
+    for _, plr in ipairs(Players:GetPlayers()) do
+        if plr ~= player then
+            table.insert(playerList, plr)
+        end
+    end
+    table.sort(playerList, function(a, b) return a.DisplayName:lower() < b.DisplayName:lower() end)
+    
+    for _, plr in ipairs(playerList) do
+        local button = Instance.new("TextButton")
+        button.Size = UDim2.new(1, -10, 0, 50)
+        button.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+        button.TextColor3 = Color3.fromRGB(0, 255, 0)  -- Neon green
+        button.Font = Enum.Font.GothamSemibold
+        button.TextSize = 15
+        button.Text = plr.DisplayName .. "\n@" .. plr.Name
+        button.TextWrapped = true
+        button.Parent = scrollingFrame
+        
+        local btnCorner = Instance.new("UICorner")
+        btnCorner.CornerRadius = UDim.new(0, 6)
+        btnCorner.Parent = button
+        
+        button.MouseButton1Click:Connect(function()
+            selectedPlayer = plr
+            detailLabel.Text = plr.DisplayName .. "\n@" .. plr.Name
+            detailFrame.Visible = true
+        end)
+        
+        button.MouseEnter:Connect(function()
+            button.BackgroundColor3 = Color3.fromRGB(45, 45, 45)
+        end)
+        button.MouseLeave:Connect(function()
+            button.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+        end)
+        
+        playerButtons[plr] = button
+    end
+    
+    updateCanvas()
+end
+
+-- Initial load
+updatePlayerList()
+
+-- Update on player join/leave
+Players.PlayerAdded:Connect(updatePlayerList)
+Players.PlayerRemoving:Connect(updatePlayerList)
+
+-- Toggle visibility with Tab (or long press title if you want, but Tab works on PC)
+local visible = true
+UserInputService.InputBegan:Connect(function(input, gameProcessed)
+    if gameProcessed then return end
+    if input.KeyCode == Enum.KeyCode.Tab then
+        visible = not visible
+        mainFrame.Visible = visible
+    end
+end)
+
+print("Black & Green Player List GUI loaded! Drag by title bar (mobile-friendly).")
